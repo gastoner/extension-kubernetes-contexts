@@ -16,6 +16,10 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
-export * from './contexts-api';
-export * from './open-dialog-api';
-export * from './subscribe-api';
+import type { OpenDialogOptions } from '@podman-desktop/api';
+
+export const OpenDialogApi = Symbol.for('OpenDialogApi');
+
+export interface OpenDialogApi {
+  openDialog(options: OpenDialogOptions): Promise<void>;
+}

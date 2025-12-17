@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
-export * from './contexts-api';
-export * from './open-dialog-api';
-export * from './subscribe-api';
+export interface OpenDialogResult {
+  // File paths as strings
+  files: string[] | undefined;
+}
