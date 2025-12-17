@@ -30,6 +30,7 @@ export default defineProject({
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts}'],
     alias: {
       '@podman-desktop/api': resolve(WORKSPACE_ROOT, '__mocks__/@podman-desktop/api.js'),
+      '@kubernetes/client-node': resolve(WORKSPACE_ROOT, '__mocks__/@kubernetes/client-node.js'),
       '/@/': join(PACKAGE_ROOT, 'src') + '/',
     },
   },
