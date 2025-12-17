@@ -1,7 +1,7 @@
 <script lang="ts">
 import { getContext, onDestroy, onMount } from 'svelte';
 import { States } from '/@/state/states';
-import { NavPage } from '@podman-desktop/ui-svelte';
+import { Button, NavPage } from '@podman-desktop/ui-svelte';
 import ContextCard from '/@/component/ContextCard.svelte';
 import { kubernetesIconBase64 } from './KubeIcon';
 import type { Context } from '@kubernetes/client-node';
@@ -34,10 +34,21 @@ function onEdit(context: Context): void {
 function closeEditModal(): void {
   contextToEdit = undefined;
 }
+
+function closeImportModal(): void {
+  importModalVisible = false;
+}
+
+function openImportModal(): void {
+  importModalVisible = true;
+}
 </script>
 
 <main class="overflow-hidden bg-(--pd-content-bg) text-base">
   <NavPage searchEnabled={false} title="Kubernetes Contexts">
+    {#snippet additionalActions()}
+      <Button type="primary" icon={faFileImport} onclick={openImportModal}>Import</Button>
+    {/snippet}
     {#snippet content()}
       <div class="mx-5 w-full">
         {#if availableContexts.data}
@@ -65,6 +76,10 @@ function closeEditModal(): void {
               clusters={availableContexts.data.clusters}
               contextToEdit={contextToEdit}
               closeCallback={closeEditModal} />
+          {/if}
+
+          {#if importModalVisible}
+            <ImportModal closeCallback={closeImportModal} />
           {/if}
         {/if}
       </div>
