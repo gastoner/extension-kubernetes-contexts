@@ -30,8 +30,6 @@ import type { OpenDialogResult } from '/@/model/open-dialog-result';
 // RPC channels (used by the webview to send requests to the extension)
 export const API_CONTEXTS = createRpcChannel<ContextsApi>('ContextsApi');
 export const API_SUBSCRIBE = createRpcChannel<SubscribeApi>('SubscribeApi');
-
-// Broadcast events (sent by extension and received by the webview)
 export const AVAILABLE_CONTEXTS = createRpcChannel<AvailableContextsInfo>('AvailableContexts');
 export const CONTEXT_HEALTHS = createRpcChannel<ContextsHealthsInfo>('ContextsHealths');
 export const RESOURCES_COUNT = createRpcChannel<ResourcesCountInfo>('ResourcesCount');
