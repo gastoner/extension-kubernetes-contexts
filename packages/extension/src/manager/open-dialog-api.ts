@@ -27,18 +27,32 @@ import { RpcExtension } from '@kubernetes-contexts/rpc';
 export class OpenDialogApiImpl implements OpenDialogApi {
   constructor(@inject(RpcExtension) private rpcExtension: RpcExtension) {}
 
-  async openDialog(options: OpenDialogOptions): Promise<void> {
+  async openDialog(id: string, options: OpenDialogOptions): Promise<void> {
     // Fire-and-forget: don't await the dialog, return immediately
     // The result will be broadcast via OPEN_DIALOG_RESULT channel
     podmanDesktopApi.window.showOpenDialog(options).then(
       uris => {
         // Extract paths as strings (Uri objects don't serialize properly through RPC)
         const files = uris?.map(uri => uri.fsPath);
-        this.rpcExtension.fire(OPEN_DIALOG_RESULT, { files }).catch(console.error);
+        this.rpcExtension.fire(OPEN_DIALOG_RESULT, { id, files }).catch((error: unknown) => {
+          console.error(`Error sending open dialog result: ${String(error)}`);
+          podmanDesktopApi.window.showNotification({
+            title: 'Error sending open dialog result',
+            body: `Sending open dialog result failed: ${String(error)}`,
+            type: 'error',
+            highlight: true,
+          });
+        });
       },
       (error: unknown) => {
         console.error(`Error opening dialog: ${error}`);
-        this.rpcExtension.fire(OPEN_DIALOG_RESULT, { files: undefined }).catch(console.error);
+        podmanDesktopApi.window.showNotification({
+          title: 'Error opening dialog',
+          body: `Opening dialog failed: ${String(error)}`,
+          type: 'error',
+          highlight: true,
+        });
+        this.rpcExtension.fire(OPEN_DIALOG_RESULT, { id, files: undefined }).catch(console.error);
       },
     );
   }

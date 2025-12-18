@@ -21,5 +21,5 @@ import type { OpenDialogOptions } from '@podman-desktop/api';
 export const OpenDialogApi = Symbol.for('OpenDialogApi');
 
 export interface OpenDialogApi {
-  openDialog(options: OpenDialogOptions): Promise<void>;
+  openDialog(id: string, options: OpenDialogOptions): Promise<void>;
 }

@@ -17,6 +17,7 @@
  ***********************************************************************/
 
 export interface OpenDialogResult {
+  id: string;
   // File paths as strings
   files: string[] | undefined;
 }
