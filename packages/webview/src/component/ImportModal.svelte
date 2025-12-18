@@ -21,6 +21,7 @@ let { closeCallback }: Props = $props();
 
 const KEEP_BOTH = 'keep-both';
 const REPLACE = 'replace';
+const DIALOG_ID = 'import-modal';
 
 type ConflictResolution = typeof KEEP_BOTH | typeof REPLACE;
 
@@ -44,9 +45,11 @@ let loading: boolean = $state(false);
 
 onMount(() => {
   // Subscribe to open dialog results broadcast
-  const dialogResultUnsubscriber = rpcBrowser.on<OpenDialogResult>(OPEN_DIALOG_RESULT, (result): void =>
-    handleDialogResult(result),
-  );
+  const dialogResultUnsubscriber = rpcBrowser.on<OpenDialogResult>(OPEN_DIALOG_RESULT, (result): void => {
+    if (result.id === DIALOG_ID) {
+      handleDialogResult(result);
+    }
+  });
 
   return (): void => {
     availableContexts.subscribe();
@@ -75,7 +78,7 @@ async function openDialog(): Promise<void> {
   try {
     // This triggers the dialog and returns immediately
     // The result will be received via the OPEN_DIALOG_RESULT broadcast
-    await openDialogApi.openDialog({
+    await openDialogApi.openDialog(DIALOG_ID, {
       title: 'Select Kubernetes config file to import',
       selectors: ['openFile'],
       filters: [
