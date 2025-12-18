@@ -32,4 +32,4 @@ export const AVAILABLE_CONTEXTS = createRpcChannel<AvailableContextsInfo>('Avail
 export const CONTEXT_HEALTHS = createRpcChannel<ContextsHealthsInfo>('ContextsHealths');
 
 export const API_OPEN_DIALOG = createRpcChannel<OpenDialogApi>('OpenDialogApi');
-export const OPEN_DIALOG_RESULT = createRpcChannel<OpenDialogResult>('OpenDialogResult');
+export const OPEN_DIALOG_RESULTS = createRpcChannel<OpenDialogResult>('OpenDialogResult');
