@@ -30,6 +30,12 @@ beforeEach(() => {
 vi.mock(import('node:fs/promises'));
 vi.mock(import('node:fs'));
 
+class TestContextsManager extends ContextsManager {
+  public async checkCertificateChanged(importingConfig: KubeConfig, contextName: string): Promise<boolean> {
+    return super.checkCertificateChanged(importingConfig, contextName);
+  }
+}
+
 test('default KubeConfig should be empty', () => {
   const contextsManager = new ContextsManager();
   expect(contextsManager.getKubeConfig()).toEqual(new KubeConfig());
@@ -1232,5 +1238,342 @@ describe('findNewContextName', () => {
 
     const newName = contextsManager.findNewContextName(kubeConfig, 'test');
     expect(newName).toBe('test-1');
+  });
+});
+
+describe('checkCertificateChanged', () => {
+  let contextsManager: TestContextsManager;
+  let mainConfig: KubeConfig;
+  let importingConfig: KubeConfig;
+
+  beforeEach(() => {
+    contextsManager = new TestContextsManager();
+    mainConfig = new KubeConfig();
+    importingConfig = new KubeConfig();
+  });
+
+  test('should return false when certificates are the same', async () => {
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: c2FtZS1jZXJ0LWRhdGE=
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: c2FtZS1jZXJ0LWRhdGE=
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(false);
+  });
+
+  test('should return true when certificates are different', async () => {
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: b2xkLWNlcnQtZGF0YQ==
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: bmV3LWNlcnQtZGF0YQ==
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(true);
+  });
+
+  test('should return false when importing user is not found', async () => {
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: Y2VydC1kYXRh
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users: []
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: missing-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(false);
+  });
+
+  test('should return false when main user is not found', async () => {
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users: []
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: missing-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: Y2VydC1kYXRh
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(false);
+  });
+
+  test('should return false when both users have no certificates', async () => {
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(false);
+  });
+
+  test('should return true when one user has certificate and other does not', async () => {
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate-data: Y2VydC1kYXRh
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(true);
+  });
+
+  test('should return false when certificates from files are the same', async () => {
+    const mainCertPath = '/path/to/main/cert.pem';
+    const importingCertPath = '/path/to/importing/cert.pem';
+    const certContent = '-----BEGIN CERTIFICATE-----\nSAME_CERT_CONTENT\n-----END CERTIFICATE-----';
+
+    vol.fromJSON({
+      [mainCertPath]: certContent,
+      [importingCertPath]: certContent,
+    });
+
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate: ${mainCertPath}
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate: ${importingCertPath}
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(false);
+  });
+
+  test('should return true when certificates from files are different', async () => {
+    const mainCertPath = '/path/to/main/cert.pem';
+    const importingCertPath = '/path/to/importing/cert.pem';
+
+    vol.fromJSON({
+      [mainCertPath]: '-----BEGIN CERTIFICATE-----\nOLD_CERT\n-----END CERTIFICATE-----',
+      [importingCertPath]: '-----BEGIN CERTIFICATE-----\nNEW_CERT\n-----END CERTIFICATE-----',
+    });
+
+    mainConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate: ${mainCertPath}
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+    await contextsManager.update(mainConfig);
+
+    importingConfig.loadFromString(`
+      clusters:
+        - name: test-cluster
+          cluster:
+            server: https://test:6443
+      users:
+        - name: test-user
+          user:
+            client-certificate: ${importingCertPath}
+      contexts:
+        - name: test-context
+          context:
+            cluster: test-cluster
+            user: test-user
+      current-context: test-context
+    `);
+
+    const result = await contextsManager.checkCertificateChanged(importingConfig, 'test-context');
+    expect(result).toBe(true);
   });
 });
