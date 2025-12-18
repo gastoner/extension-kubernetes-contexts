@@ -31,5 +31,6 @@ export const API_SUBSCRIBE = createRpcChannel<SubscribeApi>('SubscribeApi');
 export const AVAILABLE_CONTEXTS = createRpcChannel<AvailableContextsInfo>('AvailableContexts');
 export const CONTEXT_HEALTHS = createRpcChannel<ContextsHealthsInfo>('ContextsHealths');
 
+// Channels for requests expecting responses
 export const API_OPEN_DIALOG = createRpcChannel<OpenDialogApi>('OpenDialogApi');
 export const OPEN_DIALOG_RESULTS = createRpcChannel<OpenDialogResult>('OpenDialogResult');
