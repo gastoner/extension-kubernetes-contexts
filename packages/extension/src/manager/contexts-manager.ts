@@ -21,7 +21,7 @@ import { injectable } from 'inversify';
 import { Emitter, Event } from '/@/types/emitter';
 import { Cluster, Context, KubeConfig, User } from '@kubernetes/client-node';
 import { kubernetes, window } from '@podman-desktop/api';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as jsYaml from 'js-yaml';
 
@@ -282,24 +282,6 @@ export class ContextsManager implements ContextsApi {
 
     await this.update(newConfig);
     await this.saveKubeConfig();
-  }
-
-  /**
-   * Extract certificate data from user object
-   */
-  protected async extractCertificate(user: User): Promise<string | undefined> {
-    try {
-      if (user.certData) {
-        return user.certData; // Certificate is base64 encoded
-      }
-      if (user.certFile) {
-        // Certificate is in a separate file
-        return await readFile(user.certFile, 'utf-8');
-      }
-    } catch (error: unknown) {
-      console.error('Error extracting certificate:', error);
-    }
-    return undefined;
   }
 
   protected resolveNamingConflicts(

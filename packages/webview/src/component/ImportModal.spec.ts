@@ -76,7 +76,7 @@ const importContextsMock = vi.fn();
 const rpcBrowserOnMock = vi.fn();
 
 // Store the broadcast handler so we can simulate receiving files
-let dialogResultHandler: (result: { files: string[] | undefined }) => void;
+let dialogResultHandler: (result: { id: string; files: string[] | undefined }) => void;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -131,7 +131,7 @@ async function selectFileAndWaitForContexts(): Promise<void> {
   await userEvent.click(browseButton);
 
   // Simulate the broadcast result
-  dialogResultHandler({ files: ['/path/to/kubeconfig.yaml'] });
+  dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
   await waitFor(() => {
     expect(screen.getByText('Found 2 contexts in the file:')).toBeInTheDocument();
@@ -178,7 +178,7 @@ describe('ImportModal', () => {
     const browseButton = screen.getByLabelText('Browse for file');
     await userEvent.click(browseButton);
 
-    expect(openDialogMock).toHaveBeenCalledWith({
+    expect(openDialogMock).toHaveBeenCalledWith('import-modal', {
       title: 'Select Kubernetes config file to import',
       selectors: ['openFile'],
       filters: [
@@ -197,7 +197,7 @@ describe('ImportModal', () => {
     await userEvent.click(browseButton);
 
     // Simulate broadcast result
-    dialogResultHandler({ files: ['/path/to/kubeconfig.yaml'] });
+    dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
       expect(getImportContextsMock).toHaveBeenCalledWith('/path/to/kubeconfig.yaml');
@@ -249,7 +249,7 @@ describe('ImportModal', () => {
     const browseButton = screen.getByLabelText('Browse for file');
     await userEvent.click(browseButton);
 
-    dialogResultHandler({ files: ['/path/to/kubeconfig.yaml'] });
+    dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
       expect(screen.getByText('No valid contexts found in the config file')).toBeInTheDocument();
@@ -266,7 +266,7 @@ describe('ImportModal', () => {
     const browseButton = screen.getByLabelText('Browse for file');
     await userEvent.click(browseButton);
 
-    dialogResultHandler({ files: ['/path/to/kubeconfig.yaml'] });
+    dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
       expect(screen.getByText(/Failed to parse config file/)).toBeInTheDocument();
@@ -321,34 +321,6 @@ describe('ImportModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Failed to import contexts/)).toBeInTheDocument();
-    });
-  });
-
-  test('shows certificate updated badge when certificate changed', async () => {
-    // Mock import contexts with certificate changed
-    getImportContextsMock.mockResolvedValue([
-      {
-        name: 'existing-context',
-        cluster: 'existing-cluster',
-        user: 'existing-user',
-        namespace: 'default',
-        server: 'https://existing-cluster:6443',
-        hasConflict: true,
-        certificateChanged: true,
-      },
-    ]);
-
-    render(ImportModal, {
-      props: { closeCallback: mockCloseCallback },
-    });
-
-    const browseButton = screen.getByLabelText('Browse for file');
-    await userEvent.click(browseButton);
-
-    dialogResultHandler({ files: ['/path/to/kubeconfig.yaml'] });
-
-    await waitFor(() => {
-      expect(screen.getByText('Certificate updated')).toBeInTheDocument();
     });
   });
 
