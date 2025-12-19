@@ -21,7 +21,7 @@ import { injectable } from 'inversify';
 import { Emitter, Event } from '/@/types/emitter';
 import { Cluster, Context, KubeConfig, User } from '@kubernetes/client-node';
 import { kubernetes, window } from '@podman-desktop/api';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as jsYaml from 'js-yaml';
 
@@ -223,7 +223,13 @@ export class ContextsManager implements ContextsApi {
   async getImportContexts(filePath: string): Promise<ImportContextInfo[]> {
     // Check if file exists
     if (!existsSync(filePath)) {
-      throw new Error(`Kubeconfig file ${filePath} does not exist`);
+      window.showNotification({
+        title: 'Error getting import contexts',
+        body: `Kubeconfig file ${filePath} does not exist`,
+        type: 'error',
+        highlight: true,
+      });
+      return [];
     }
 
     try {
@@ -241,12 +247,6 @@ export class ContextsManager implements ContextsApi {
         const cluster = importConfig.clusters.find(c => c.name === context.cluster);
         const server = cluster?.server;
 
-        // Check if certificate has changed (only if there's a conflict)
-        let certificateChanged = false;
-        if (hasConflict) {
-          certificateChanged = await this.checkCertificateChanged(importConfig, context.name);
-        }
-
         results.push({
           name: context.name,
           cluster: context.cluster,
@@ -254,13 +254,18 @@ export class ContextsManager implements ContextsApi {
           namespace: context.namespace,
           server,
           hasConflict,
-          certificateChanged,
         });
       }
 
       return results;
     } catch (error: unknown) {
-      throw new Error(`Failed to parse kubeconfig file: ${error}`);
+      window.showNotification({
+        title: 'Error getting import contexts',
+        body: `Failed to parse kubeconfig file ${filePath}: ${String(error)}`,
+        type: 'error',
+        highlight: true,
+      });
+      return [];
     }
   }
 
@@ -276,37 +281,28 @@ export class ContextsManager implements ContextsApi {
     selectedContexts: string[],
     conflictResolutions: Record<string, 'keep-both' | 'replace'>,
   ): Promise<void> {
-    // Parse the source kubeconfig file
-    const tempConfig = new KubeConfig();
-    tempConfig.loadFromFile(filePath);
-    const newConfig = new KubeConfig();
-    newConfig.loadFromString(this.getKubeConfig().exportConfig());
-
-    // Process each selected context
-    for (const contextName of selectedContexts) {
-      this.processContextImport(newConfig, tempConfig, contextName, conflictResolutions);
-    }
-
-    await this.update(newConfig);
-    await this.saveKubeConfig();
-  }
-
-  /**
-   * Extract certificate data from user object
-   */
-  protected async extractCertificate(user: User): Promise<string | undefined> {
     try {
-      if (user.certData) {
-        return user.certData; // Certificate is base64 encoded
+      // Parse the source kubeconfig file
+      const tempConfig = new KubeConfig();
+      tempConfig.loadFromFile(filePath);
+      const newConfig = new KubeConfig();
+      newConfig.loadFromString(this.getKubeConfig().exportConfig());
+
+      // Process each selected context
+      for (const contextName of selectedContexts) {
+        this.processContextImport(newConfig, tempConfig, contextName, conflictResolutions);
       }
-      if (user.certFile) {
-        // Certificate is in a separate file
-        return await readFile(user.certFile, 'utf-8');
-      }
+
+      await this.update(newConfig);
+      await this.saveKubeConfig();
     } catch (error: unknown) {
-      console.error('Error extracting certificate:', error);
+      window.showNotification({
+        title: 'Error importing contexts',
+        body: `Importing contexts from file ${filePath} failed: ${String(error)}`,
+        type: 'error',
+        highlight: true,
+      });
     }
-    return undefined;
   }
 
   protected resolveNamingConflicts(
@@ -366,7 +362,13 @@ export class ContextsManager implements ContextsApi {
     const sourceUser = this.getUserFromConfig(tempConfig, contextName);
 
     if (!sourceCluster || !sourceUser) {
-      throw new Error(`Missing cluster or user information for context ${contextName}`);
+      window.showNotification({
+        title: 'Error importing contexts',
+        body: `Missing cluster or user information for context ${contextName}`,
+        type: 'error',
+        highlight: true,
+      });
+      return;
     }
 
     const conflictResolution = conflictResolutions[contextName];
@@ -428,34 +430,5 @@ export class ContextsManager implements ContextsApi {
       return undefined;
     }
     return config.users.find(u => u.name === context.user);
-  }
-
-  /**
-   * Check if the certificate has changed between the importing config and current config
-   */
-  protected async checkCertificateChanged(importingConfig: KubeConfig, contextName: string): Promise<boolean> {
-    try {
-      // Find the user in the importing file
-      const importingUser = this.getUserFromConfig(importingConfig, contextName);
-      if (!importingUser) {
-        return false;
-      }
-
-      // Find the user in the main kubeconfig
-      const mainUser = this.getUserFromConfig(this.#currentKubeConfig, contextName);
-      if (!mainUser) {
-        return false;
-      }
-
-      // Extract and compare certificates
-      const mainCert = await this.extractCertificate(mainUser);
-      const importingCert = await this.extractCertificate(importingUser);
-
-      // Compare certificates - return true if they're different
-      return mainCert !== importingCert;
-    } catch (error: unknown) {
-      console.error(`Error comparing certificates: ${error}`);
-      return false;
-    }
   }
 }

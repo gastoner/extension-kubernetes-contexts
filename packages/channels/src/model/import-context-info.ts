@@ -25,6 +25,4 @@ export interface ImportContextInfo {
   server?: string;
   // Whether this context already exists in current kubeconfig
   hasConflict: boolean;
-  // Whether the certificate has changed (only relevant if hasConflict is true)
-  certificateChanged: boolean;
 }

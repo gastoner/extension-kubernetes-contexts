@@ -33,7 +33,7 @@ import type {
   ImportContextInfo,
   OpenDialogApi,
 } from '@kubernetes-contexts/channels';
-import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULT } from '@kubernetes-contexts/channels';
+import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULTS } from '@kubernetes-contexts/channels';
 import { RpcBrowser } from '@kubernetes-contexts/rpc';
 
 const remoteMocks = new RemoteMocks();
@@ -51,7 +51,6 @@ const mockImportContexts: ImportContextInfo[] = [
     namespace: 'production',
     server: 'https://new-cluster:6443',
     hasConflict: false,
-    certificateChanged: false,
   },
   {
     name: 'existing-context',
@@ -60,7 +59,6 @@ const mockImportContexts: ImportContextInfo[] = [
     namespace: 'default',
     server: 'https://existing-cluster:6443',
     hasConflict: true,
-    certificateChanged: false,
   },
 ];
 
@@ -92,7 +90,7 @@ beforeEach(() => {
 
   // Mock RpcBrowser via getContext
   rpcBrowserOnMock.mockImplementation((channel, handler) => {
-    if (channel === OPEN_DIALOG_RESULT) {
+    if (channel === OPEN_DIALOG_RESULTS) {
       dialogResultHandler = handler;
     }
     return { dispose: vi.fn() };
