@@ -241,12 +241,6 @@ export class ContextsManager implements ContextsApi {
         const cluster = importConfig.clusters.find(c => c.name === context.cluster);
         const server = cluster?.server;
 
-        // Check if certificate has changed (only if there's a conflict)
-        let certificateChanged = false;
-        if (hasConflict) {
-          certificateChanged = await this.checkCertificateChanged(importConfig, context.name);
-        }
-
         results.push({
           name: context.name,
           cluster: context.cluster,
@@ -254,7 +248,6 @@ export class ContextsManager implements ContextsApi {
           namespace: context.namespace,
           server,
           hasConflict,
-          certificateChanged,
         });
       }
 
@@ -428,34 +421,5 @@ export class ContextsManager implements ContextsApi {
       return undefined;
     }
     return config.users.find(u => u.name === context.user);
-  }
-
-  /**
-   * Check if the certificate has changed between the importing config and current config
-   */
-  protected async checkCertificateChanged(importingConfig: KubeConfig, contextName: string): Promise<boolean> {
-    try {
-      // Find the user in the importing file
-      const importingUser = this.getUserFromConfig(importingConfig, contextName);
-      if (!importingUser) {
-        return false;
-      }
-
-      // Find the user in the main kubeconfig
-      const mainUser = this.getUserFromConfig(this.#currentKubeConfig, contextName);
-      if (!mainUser) {
-        return false;
-      }
-
-      // Extract and compare certificates
-      const mainCert = await this.extractCertificate(mainUser);
-      const importingCert = await this.extractCertificate(importingUser);
-
-      // Compare certificates - return true if they're different
-      return mainCert !== importingCert;
-    } catch (error: unknown) {
-      console.error(`Error comparing certificates: ${error}`);
-      return false;
-    }
   }
 }
