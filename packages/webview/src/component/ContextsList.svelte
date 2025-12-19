@@ -7,6 +7,8 @@ import { kubernetesIconBase64 } from './KubeIcon';
 import type { Context } from '@kubernetes/client-node';
 import EditModal from '/@/component/EditModal.svelte';
 import type { Unsubscriber } from 'svelte/store';
+import ImportModal from '/@/component/ImportModal.svelte';
+import { faFileImport } from '@fortawesome/free-solid-svg-icons';
 
 const states = getContext<States>(States);
 const availableContexts = states.stateAvailableContextsInfoUI;
@@ -14,6 +16,7 @@ const contextsHealths = states.stateContextsHealthsInfoUI;
 
 let contextToEdit = $state<Context>();
 let subscribers: Unsubscriber[] = [];
+let importModalVisible = $state(false);
 
 onMount(() => {
   subscribers.push(availableContexts.subscribe());
