@@ -6,7 +6,7 @@ import { getContext, onMount } from 'svelte';
 import Dialog from '/@/component/dialog/Dialog.svelte';
 import ContextCardLine from '/@/component/ContextCardLine.svelte';
 import { Remote } from '/@/remote/remote';
-import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULT } from '@kubernetes-contexts/channels';
+import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULTS } from '@kubernetes-contexts/channels';
 import { faFileImport, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 import { States } from '/@/state/states';
 import { Icon } from '@podman-desktop/ui-svelte/icons';
@@ -45,7 +45,7 @@ let loading: boolean = $state(false);
 
 onMount(() => {
   // Subscribe to open dialog results broadcast
-  const dialogResultUnsubscriber = rpcBrowser.on<OpenDialogResult>(OPEN_DIALOG_RESULT, (result): void => {
+  const dialogResultUnsubscriber = rpcBrowser.on<OpenDialogResult>(OPEN_DIALOG_RESULTS, (result): void => {
     if (result.id === DIALOG_ID) {
       handleDialogResult(result);
     }
