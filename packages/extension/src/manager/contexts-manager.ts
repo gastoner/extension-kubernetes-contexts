@@ -223,7 +223,13 @@ export class ContextsManager implements ContextsApi {
   async getImportContexts(filePath: string): Promise<ImportContextInfo[]> {
     // Check if file exists
     if (!existsSync(filePath)) {
-      throw new Error(`Kubeconfig file ${filePath} does not exist`);
+      window.showNotification({
+        title: 'Error getting import contexts',
+        body: `Kubeconfig file ${filePath} does not exist`,
+        type: 'error',
+        highlight: true,
+      });
+      return [];
     }
 
     try {
@@ -253,7 +259,13 @@ export class ContextsManager implements ContextsApi {
 
       return results;
     } catch (error: unknown) {
-      throw new Error(`Failed to parse kubeconfig file: ${error}`);
+      window.showNotification({
+        title: 'Error getting import contexts',
+        body: `Failed to parse kubeconfig file ${filePath}: ${String(error)}`,
+        type: 'error',
+        highlight: true,
+      });
+      return [];
     }
   }
 
@@ -269,19 +281,28 @@ export class ContextsManager implements ContextsApi {
     selectedContexts: string[],
     conflictResolutions: Record<string, 'keep-both' | 'replace'>,
   ): Promise<void> {
-    // Parse the source kubeconfig file
-    const tempConfig = new KubeConfig();
-    tempConfig.loadFromFile(filePath);
-    const newConfig = new KubeConfig();
-    newConfig.loadFromString(this.getKubeConfig().exportConfig());
+    try {
+      // Parse the source kubeconfig file
+      const tempConfig = new KubeConfig();
+      tempConfig.loadFromFile(filePath);
+      const newConfig = new KubeConfig();
+      newConfig.loadFromString(this.getKubeConfig().exportConfig());
 
-    // Process each selected context
-    for (const contextName of selectedContexts) {
-      this.processContextImport(newConfig, tempConfig, contextName, conflictResolutions);
+      // Process each selected context
+      for (const contextName of selectedContexts) {
+        this.processContextImport(newConfig, tempConfig, contextName, conflictResolutions);
+      }
+
+      await this.update(newConfig);
+      await this.saveKubeConfig();
+    } catch (error: unknown) {
+      window.showNotification({
+        title: 'Error importing contexts',
+        body: `Importing contexts from file ${filePath} failed: ${String(error)}`,
+        type: 'error',
+        highlight: true,
+      });
     }
-
-    await this.update(newConfig);
-    await this.saveKubeConfig();
   }
 
   protected resolveNamingConflicts(
@@ -341,7 +362,13 @@ export class ContextsManager implements ContextsApi {
     const sourceUser = this.getUserFromConfig(tempConfig, contextName);
 
     if (!sourceCluster || !sourceUser) {
-      throw new Error(`Missing cluster or user information for context ${contextName}`);
+      window.showNotification({
+        title: 'Error importing contexts',
+        body: `Missing cluster or user information for context ${contextName}`,
+        type: 'error',
+        highlight: true,
+      });
+      return;
     }
 
     const conflictResolution = conflictResolutions[contextName];

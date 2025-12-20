@@ -904,15 +904,20 @@ describe('getImportContexts', () => {
     expect(result[0].hasConflict).toBe(false);
   });
 
-  test('should throw error if file does not exist', async () => {
+  test('should return empty array if file does not exist', async () => {
     const contextsManager = new ContextsManager();
 
-    await expect(contextsManager.getImportContexts('/nonexistent/file')).rejects.toThrowError(
-      'Kubeconfig file /nonexistent/file does not exist',
-    );
+    const result = await contextsManager.getImportContexts('/nonexistent/file');
+    expect(result).toEqual([]);
+    expect(window.showNotification).toHaveBeenCalledWith({
+      title: 'Error getting import contexts',
+      body: 'Kubeconfig file /nonexistent/file does not exist',
+      type: 'error',
+      highlight: true,
+    });
   });
 
-  test('should throw error if kubeconfig parsing fails', async () => {
+  test('should return empty array if kubeconfig parsing fails', async () => {
     const kubeConfigPath = '/path/to/invalid.yaml';
     vol.fromJSON({ [kubeConfigPath]: '' });
 
@@ -923,9 +928,14 @@ describe('getImportContexts', () => {
 
     const contextsManager = new ContextsManager();
 
-    await expect(contextsManager.getImportContexts(kubeConfigPath)).rejects.toThrowError(
-      'Failed to parse kubeconfig file',
-    );
+    const result = await contextsManager.getImportContexts(kubeConfigPath);
+    expect(result).toEqual([]);
+    expect(window.showNotification).toHaveBeenCalledWith({
+      title: 'Error getting import contexts',
+      body: 'Failed to parse kubeconfig file /path/to/invalid.yaml: Error: Invalid YAML',
+      type: 'error',
+      highlight: true,
+    });
   });
 
   test('should return multiple contexts', async () => {
