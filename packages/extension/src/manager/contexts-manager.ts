@@ -218,7 +218,7 @@ export class ContextsManager implements ContextsApi {
    * Parse a kubeconfig file and return contexts with conflict information
    *
    * @param filePath path to the kubeconfig file
-   * @returns Array of ImportContextInfo with conflict and certificate change info
+   * @returns Array of ImportContextInfo with conflict info
    */
   async getImportContexts(filePath: string): Promise<ImportContextInfo[]> {
     // Check if file exists
