@@ -1,16 +1,14 @@
 <script lang="ts">
 import type { ImportContextInfo, OpenDialogResult } from '@kubernetes-contexts/channels';
-import { Button, Checkbox, ErrorMessage, Input } from '@podman-desktop/ui-svelte';
+import { Button, ErrorMessage, Input } from '@podman-desktop/ui-svelte';
 import { getContext, onMount } from 'svelte';
 
 import Dialog from '/@/component/dialog/Dialog.svelte';
-import ContextCardLine from '/@/component/ContextCardLine.svelte';
+import ImportContextCard from '/@/component/ImportContextCard.svelte';
 import { Remote } from '/@/remote/remote';
 import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULTS } from '@kubernetes-contexts/channels';
 import { faFileImport, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
 import { States } from '/@/state/states';
-import { Icon } from '@podman-desktop/ui-svelte/icons';
-import { kubernetesIconBase64 } from '/@/component/KubeIcon';
 import { RpcBrowser } from '@kubernetes-contexts/rpc';
 
 interface Props {
@@ -30,8 +28,9 @@ interface LoadedContext extends ImportContextInfo {
   conflictResolution: ConflictResolution;
 }
 
-const remote = getContext<Remote>(Remote);
 const rpcBrowser = getContext<RpcBrowser>(RpcBrowser);
+
+const remote = getContext<Remote>(Remote);
 const contextsApi = remote.getProxy(API_CONTEXTS);
 const openDialogApi = remote.getProxy(API_OPEN_DIALOG);
 
@@ -50,10 +49,11 @@ onMount(() => {
       handleDialogResult(result);
     }
   });
+  const availableContextsUnsubscriber = availableContexts.subscribe();
 
   return (): void => {
-    availableContexts.subscribe();
     dialogResultUnsubscriber.dispose();
+    availableContextsUnsubscriber();
   };
 });
 
@@ -65,7 +65,8 @@ function handleDialogResult(result: OpenDialogResult): void {
 
   filePath = result.files[0];
   loadContextsFromFile().catch((error: unknown): void => {
-    (console.error(`Error loading contexts from file: ${error}`), (filePath = undefined));
+    console.error(`Error loading contexts from file: ${error}`);
+    filePath = undefined;
     loadedContexts = [];
     errorMessage = `Error while selecting config file: ${error}`;
     loading = false;
@@ -82,10 +83,6 @@ async function openDialog(): Promise<void> {
       title: 'Select Kubernetes config file to import',
       selectors: ['openFile'],
       filters: [
-        {
-          name: 'Kubernetes yaml files',
-          extensions: ['yaml', 'yml'],
-        },
         {
           name: 'All files',
           extensions: ['*'],
@@ -135,22 +132,6 @@ async function loadContextsFromFile(): Promise<void> {
 
 function updateConflictResolution(index: number, resolution: ConflictResolution): void {
   loadedContexts[index].conflictResolution = resolution;
-}
-
-function generatePreviewName(contextName: string): string {
-  const existingNames = availableContexts.data?.contexts.map(ctx => ctx.name);
-
-  if (!existingNames) {
-    return contextName;
-  }
-
-  let counter = 1;
-  let newName = `${contextName}-${counter}`;
-  while (existingNames.includes(newName)) {
-    counter += 1;
-    newName = `${contextName}-${counter}`;
-  }
-  return newName;
 }
 
 async function importSelectedContexts(): Promise<void> {
@@ -236,80 +217,17 @@ function getSelectedCount(): number {
         </div>
 
         {#each loadedContexts as item, index (item.name)}
-          <div role="row" aria-label={item.name} class="bg-(--pd-content-card-bg) rounded-md p-3 flex">
-            <!-- Checkbox stays at full opacity -->
-            <div class="flex items-start pr-3 pt-1">
-              <Checkbox bind:checked={item.selected} title="Select context {item.name}" />
-            </div>
-
-            <!-- Card content fades when deselected -->
-            <div class="grow" class:opacity-50={!item.selected}>
-              <div class="flex items-center pb-2">
-                <Icon icon={kubernetesIconBase64} class="max-w-[40px] h-full" />
-
-                <div class="pl-3 grow flex flex-col justify-center">
-                  <span class="font-semibold text-(--pd-invert-content-card-header-text)" aria-label="Context Name">
-                    {item.name}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Conflict resolution options -->
-              {#if item.hasConflict && item.selected}
-                <div class="flex flex-wrap items-center mb-3 gap-3 p-2 bg-(--pd-invert-content-bg) rounded">
-                  <span class="text-amber-500 text-sm">⚠ A context with this name already exists</span>
-
-                  <label for="keepBoth-{index}" class="flex items-center cursor-pointer" aria-label="keep-both-radio">
-                    <input
-                      bind:group={item.conflictResolution}
-                      type="radio"
-                      id="keepBoth-{index}"
-                      name="conflictResolution-{index}"
-                      value={KEEP_BOTH}
-                      onchange={(): void => updateConflictResolution(index, KEEP_BOTH)}
-                      class="sr-only peer"
-                      aria-label="keep-both-conflict-resolution-select" />
-                    <div
-                      class="w-4 h-4 rounded-full border-2 border-(--pd-input-checkbox-unchecked) mr-2 peer-checked:border-(--pd-input-checkbox-checked) peer-checked:bg-(--pd-input-checkbox-checked)">
-                    </div>
-                    <span class="text-sm">Keep both</span>
-                    <span class="ml-1 text-xs text-(--pd-content-text)">
-                      → <span class="font-mono bg-(--pd-invert-content-bg) px-1 rounded"
-                        >{generatePreviewName(item.name)}</span>
-                    </span>
-                  </label>
-
-                  <label for="replace-{index}" class="flex items-center cursor-pointer" aria-label="replace-radio">
-                    <input
-                      bind:group={item.conflictResolution}
-                      type="radio"
-                      id="replace-{index}"
-                      name="conflictResolution-{index}"
-                      value={REPLACE}
-                      onchange={(): void => updateConflictResolution(index, REPLACE)}
-                      class="sr-only peer"
-                      aria-label="replace-conflict-resolution-select" />
-                    <div
-                      class="w-4 h-4 rounded-full border-2 border-(--pd-input-checkbox-unchecked) mr-2 peer-checked:border-(--pd-input-checkbox-checked) peer-checked:bg-(--pd-input-checkbox-checked)">
-                    </div>
-                    <span class="text-sm">Replace existing</span>
-                  </label>
-                </div>
-              {/if}
-
-              <!-- Context details -->
-              <div class="grow text-sm">
-                <ContextCardLine title="CLUSTER" value={item.cluster} label="Context Cluster" />
-                {#if item.server}
-                  <ContextCardLine title="SERVER" value={item.server} label="Context Server" />
-                {/if}
-                <ContextCardLine title="USER" value={item.user} label="Context User" />
-                {#if item.namespace}
-                  <ContextCardLine title="NAMESPACE" value={item.namespace} label="Context Namespace" />
-                {/if}
-              </div>
-            </div>
-          </div>
+          <ImportContextCard
+            name={item.name}
+            cluster={item.cluster}
+            user={item.user}
+            server={item.server}
+            namespace={item.namespace}
+            bind:selected={item.selected}
+            hasConflict={item.hasConflict}
+            conflictResolution={item.conflictResolution}
+            onConflictResolutionChange={(resolution: ConflictResolution): void =>
+              updateConflictResolution(index, resolution)} />
         {/each}
       {/if}
     </div>
