@@ -1,5 +1,5 @@
 /**********************************************************************
- * Copyright (C) 2025 Red Hat, Inc.
+ * Copyright (C) 2026 Red Hat, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the 'License');
  * you may not use this file except in compliance with the License.
@@ -34,13 +34,14 @@ import type {
   OpenDialogApi,
 } from '@kubernetes-contexts/channels';
 import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULTS } from '@kubernetes-contexts/channels';
+import type { RpcChannel } from '@kubernetes-contexts/rpc';
 import { RpcBrowser } from '@kubernetes-contexts/rpc';
 
 const remoteMocks = new RemoteMocks();
 const statesMocks = new StatesMocks();
 let availableContextsMock: FakeStateObject<AvailableContextsInfo, void>;
 
-const mockCloseCallback = vi.fn();
+const mockCloseCallback: () => void = vi.fn();
 
 // Mock import contexts data (returned by getImportContexts)
 const mockImportContexts: ImportContextInfo[] = [
@@ -63,10 +64,14 @@ const mockImportContexts: ImportContextInfo[] = [
 ];
 
 // Mock functions
-const openDialogMock = vi.fn();
-const getImportContextsMock = vi.fn();
-const importContextsMock = vi.fn();
-const rpcBrowserOnMock = vi.fn();
+const openDialogApiMock: OpenDialogApi = {
+  openDialog: vi.fn(),
+} as unknown as OpenDialogApi;
+
+const contextsApiMock: ContextsApi = {
+  getImportContexts: vi.fn(),
+  importContextsFromFile: vi.fn(),
+} as unknown as ContextsApi;
 
 // Store the broadcast handler so we can simulate receiving files
 let dialogResultHandler: (result: { id: string; files: string[] | undefined }) => void;
@@ -88,16 +93,16 @@ beforeEach(() => {
   });
 
   // Mock RpcBrowser via getContext
-  rpcBrowserOnMock.mockImplementation((channel, handler) => {
+  const rpcBrowserOnMock = vi.fn().mockImplementation(<T>(channel: RpcChannel<T>, handler: (result: T) => void) => {
     if (channel === OPEN_DIALOG_RESULTS) {
-      dialogResultHandler = handler;
+      dialogResultHandler = handler as (result: { id: string; files: string[] | undefined }) => void;
     }
     return { dispose: vi.fn() };
   });
 
   const mockRpcBrowser = {
     on: rpcBrowserOnMock,
-  };
+  } as unknown as RpcBrowser;
 
   // Extend getContext mock to handle RpcBrowser
   const originalGetContext = vi.mocked(svelte.getContext).getMockImplementation();
@@ -109,19 +114,12 @@ beforeEach(() => {
   });
 
   // Mock Remote APIs
-  remoteMocks.mock(API_OPEN_DIALOG, {
-    openDialog: openDialogMock,
-  } as unknown as OpenDialogApi);
+  remoteMocks.mock(API_OPEN_DIALOG, openDialogApiMock);
+  remoteMocks.mock(API_CONTEXTS, contextsApiMock);
 
-  remoteMocks.mock(API_CONTEXTS, {
-    getImportContexts: getImportContextsMock,
-    importContextsFromFile: importContextsMock,
-  } as unknown as ContextsApi);
-
-  // Default mock implementations
-  openDialogMock.mockResolvedValue(undefined);
-  getImportContextsMock.mockResolvedValue(mockImportContexts);
-  importContextsMock.mockResolvedValue(undefined);
+  // Default mock for getImportContexts
+  vi.mocked(contextsApiMock.getImportContexts).mockResolvedValue(mockImportContexts);
+  vi.mocked(contextsApiMock.importContextsFromFile).mockResolvedValue(undefined);
 });
 
 /** Helper to simulate file selection via broadcast and wait for contexts to load */
@@ -177,7 +175,7 @@ describe('ImportModal', () => {
     const browseButton = screen.getByLabelText('Browse for file');
     await userEvent.click(browseButton);
 
-    expect(openDialogMock).toHaveBeenCalledWith('import-modal', {
+    expect(openDialogApiMock.openDialog).toHaveBeenCalledWith('import-modal', {
       title: 'Select Kubernetes config file to import',
       selectors: ['openFile'],
       filters: [{ name: 'All files', extensions: ['*'] }],
@@ -196,7 +194,7 @@ describe('ImportModal', () => {
     dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
-      expect(getImportContextsMock).toHaveBeenCalledWith('/path/to/kubeconfig.yaml');
+      expect(contextsApiMock.getImportContexts).toHaveBeenCalledWith('/path/to/kubeconfig.yaml');
     });
   });
 
@@ -236,7 +234,7 @@ describe('ImportModal', () => {
   });
 
   test('shows error when no contexts found in file', async () => {
-    getImportContextsMock.mockResolvedValue([]);
+    vi.mocked(contextsApiMock.getImportContexts).mockResolvedValue([]);
 
     render(ImportModal, {
       props: { closeCallback: mockCloseCallback },
@@ -253,7 +251,7 @@ describe('ImportModal', () => {
   });
 
   test('shows error when parsing fails', async () => {
-    getImportContextsMock.mockRejectedValue(new Error('Parse error'));
+    vi.mocked(contextsApiMock.getImportContexts).mockRejectedValue(new Error('Parse error'));
 
     render(ImportModal, {
       props: { closeCallback: mockCloseCallback },
@@ -280,7 +278,7 @@ describe('ImportModal', () => {
     await userEvent.click(importButton);
 
     await waitFor(() => {
-      expect(importContextsMock).toHaveBeenCalledWith(
+      expect(contextsApiMock.importContextsFromFile).toHaveBeenCalledWith(
         '/path/to/kubeconfig.yaml',
         ['new-context', 'existing-context'],
         expect.objectContaining({ 'existing-context': 'keep-both' }),
@@ -304,7 +302,7 @@ describe('ImportModal', () => {
   });
 
   test('shows error when import fails', async () => {
-    importContextsMock.mockRejectedValue(new Error('Import failed'));
+    vi.mocked(contextsApiMock.importContextsFromFile).mockRejectedValue(new Error('Import failed'));
 
     render(ImportModal, {
       props: { closeCallback: mockCloseCallback },
