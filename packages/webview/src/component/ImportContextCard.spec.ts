@@ -190,7 +190,7 @@ describe('ImportContextCard', () => {
     const keepBothRadio = screen.getByLabelText('keep-both-conflict-resolution-select');
     await userEvent.click(keepBothRadio);
 
-    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith(KEEP_BOTH);
+    expect(defaultProps.onConflictResolutionChange).toHaveBeenCalledWith(KEEP_BOTH);
   });
 
   test('calls onConflictResolutionChange when replace is selected', async () => {
@@ -205,7 +205,7 @@ describe('ImportContextCard', () => {
     const replaceRadio = screen.getByLabelText('replace-conflict-resolution-select');
     await userEvent.click(replaceRadio);
 
-    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith(REPLACE);
+    expect(defaultProps.onConflictResolutionChange).toHaveBeenCalledWith(REPLACE);
   });
 
   test('has correct aria-label on row', () => {
