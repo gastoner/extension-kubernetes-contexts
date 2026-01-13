@@ -30,8 +30,6 @@ import type { AvailableContextsInfo } from '@kubernetes-contexts/channels';
 const statesMocks = new StatesMocks();
 let availableContextsMock: FakeStateObject<AvailableContextsInfo, void>;
 
-const mockOnConflictResolutionChange = vi.fn();
-
 const defaultProps = {
   name: 'test-context',
   cluster: 'test-cluster',
@@ -41,7 +39,7 @@ const defaultProps = {
   selected: true,
   hasConflict: false,
   conflictResolution: 'keep-both' as const,
-  onConflictResolutionChange: mockOnConflictResolutionChange,
+  onConflictResolutionChange: vi.fn<(resolution: 'keep-both' | 'replace') => void>(),
 };
 
 beforeEach(() => {
@@ -191,7 +189,7 @@ describe('ImportContextCard', () => {
     const keepBothRadio = screen.getByLabelText('keep-both-conflict-resolution-select');
     await userEvent.click(keepBothRadio);
 
-    expect(mockOnConflictResolutionChange).toHaveBeenCalledWith('keep-both');
+    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith('keep-both');
   });
 
   test('calls onConflictResolutionChange when replace is selected', async () => {
@@ -206,7 +204,7 @@ describe('ImportContextCard', () => {
     const replaceRadio = screen.getByLabelText('replace-conflict-resolution-select');
     await userEvent.click(replaceRadio);
 
-    expect(mockOnConflictResolutionChange).toHaveBeenCalledWith('replace');
+    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith('replace');
   });
 
   test('has correct aria-label on row', () => {

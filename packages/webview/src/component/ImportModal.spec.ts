@@ -18,13 +18,13 @@
 
 import '@testing-library/jest-dom/vitest';
 
-import * as svelte from 'svelte';
 import { render, screen, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import ImportModal from './ImportModal.svelte';
 import { RemoteMocks } from '/@/tests/remote-mocks';
+import { RpcBrowserMocks } from '/@/tests/rpc-browser-mocks';
 import { StatesMocks } from '/@/tests/state-mocks';
 import { FakeStateObject } from '/@/state/util/fake-state-object.svelte';
 import type {
@@ -34,10 +34,9 @@ import type {
   OpenDialogApi,
 } from '@kubernetes-contexts/channels';
 import { API_CONTEXTS, API_OPEN_DIALOG, OPEN_DIALOG_RESULTS } from '@kubernetes-contexts/channels';
-import type { RpcChannel } from '@kubernetes-contexts/rpc';
-import { RpcBrowser } from '@kubernetes-contexts/rpc';
 
 const remoteMocks = new RemoteMocks();
+const rpcBrowserMocks = new RpcBrowserMocks();
 const statesMocks = new StatesMocks();
 let availableContextsMock: FakeStateObject<AvailableContextsInfo, void>;
 
@@ -73,13 +72,11 @@ const contextsApiMock: ContextsApi = {
   importContextsFromFile: vi.fn(),
 } as unknown as ContextsApi;
 
-// Store the broadcast handler so we can simulate receiving files
-let dialogResultHandler: (result: { id: string; files: string[] | undefined }) => void;
-
 beforeEach(() => {
   vi.resetAllMocks();
 
   remoteMocks.reset();
+  rpcBrowserMocks.reset();
   statesMocks.reset();
 
   // Mock States
@@ -90,27 +87,6 @@ beforeEach(() => {
     users: [{ name: 'existing-user' }],
     contexts: [{ name: 'existing-context', cluster: 'existing-cluster', user: 'existing-user', namespace: 'default' }],
     currentContext: 'existing-context',
-  });
-
-  // Mock RpcBrowser via getContext
-  const rpcBrowserOnMock = vi.fn().mockImplementation(<T>(channel: RpcChannel<T>, handler: (result: T) => void) => {
-    if (channel === OPEN_DIALOG_RESULTS) {
-      dialogResultHandler = handler as (result: { id: string; files: string[] | undefined }) => void;
-    }
-    return { dispose: vi.fn() };
-  });
-
-  const mockRpcBrowser = {
-    on: rpcBrowserOnMock,
-  } as unknown as RpcBrowser;
-
-  // Extend getContext mock to handle RpcBrowser
-  const originalGetContext = vi.mocked(svelte.getContext).getMockImplementation();
-  vi.mocked(svelte.getContext).mockImplementation(key => {
-    if (key === RpcBrowser) {
-      return mockRpcBrowser;
-    }
-    return originalGetContext?.(key);
   });
 
   // Mock Remote APIs
@@ -128,7 +104,7 @@ async function selectFileAndWaitForContexts(): Promise<void> {
   await userEvent.click(browseButton);
 
   // Simulate the broadcast result
-  dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
+  rpcBrowserMocks.fire(OPEN_DIALOG_RESULTS, { id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
   await waitFor(() => {
     expect(screen.getByText('Found 2 contexts in the file:')).toBeInTheDocument();
@@ -191,7 +167,7 @@ describe('ImportModal', () => {
     await userEvent.click(browseButton);
 
     // Simulate broadcast result
-    dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
+    rpcBrowserMocks.fire(OPEN_DIALOG_RESULTS, { id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
       expect(contextsApiMock.getImportContexts).toHaveBeenCalledWith('/path/to/kubeconfig.yaml');
@@ -243,7 +219,7 @@ describe('ImportModal', () => {
     const browseButton = screen.getByLabelText('Browse for file');
     await userEvent.click(browseButton);
 
-    dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
+    rpcBrowserMocks.fire(OPEN_DIALOG_RESULTS, { id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
       expect(screen.getByText('No valid contexts found in the config file')).toBeInTheDocument();
@@ -260,7 +236,7 @@ describe('ImportModal', () => {
     const browseButton = screen.getByLabelText('Browse for file');
     await userEvent.click(browseButton);
 
-    dialogResultHandler({ id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
+    rpcBrowserMocks.fire(OPEN_DIALOG_RESULTS, { id: 'import-modal', files: ['/path/to/kubeconfig.yaml'] });
 
     await waitFor(() => {
       expect(screen.getByText(/Failed to parse config file/)).toBeInTheDocument();
