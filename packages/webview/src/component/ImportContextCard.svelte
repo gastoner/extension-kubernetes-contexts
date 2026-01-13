@@ -6,23 +6,7 @@ import ContextCardLine from '/@/component/ContextCardLine.svelte';
 import { kubernetesIconBase64 } from '/@/component/KubeIcon';
 import { getContext, onMount } from 'svelte';
 import { States } from '/@/state/states';
-
-const KEEP_BOTH = 'keep-both';
-const REPLACE = 'replace';
-
-type ConflictResolution = typeof KEEP_BOTH | typeof REPLACE;
-
-interface Props {
-  name: string;
-  cluster: string;
-  user: string;
-  server?: string;
-  namespace?: string;
-  selected: boolean;
-  hasConflict: boolean;
-  conflictResolution: ConflictResolution;
-  onConflictResolutionChange: (resolution: ConflictResolution) => void;
-}
+import { KEEP_BOTH, REPLACE, type Props } from '/@/component/ImportContextCard';
 
 let {
   name,

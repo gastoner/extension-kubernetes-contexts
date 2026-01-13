@@ -26,6 +26,7 @@ import ImportContextCard from './ImportContextCard.svelte';
 import { StatesMocks } from '/@/tests/state-mocks';
 import { FakeStateObject } from '/@/state/util/fake-state-object.svelte';
 import type { AvailableContextsInfo } from '@kubernetes-contexts/channels';
+import { KEEP_BOTH, REPLACE, type Props } from '/@/component/ImportContextCard';
 
 const statesMocks = new StatesMocks();
 let availableContextsMock: FakeStateObject<AvailableContextsInfo, void>;
@@ -38,9 +39,9 @@ const defaultProps = {
   namespace: 'default',
   selected: true,
   hasConflict: false,
-  conflictResolution: 'keep-both' as const,
-  onConflictResolutionChange: vi.fn<(resolution: 'keep-both' | 'replace') => void>(),
-};
+  conflictResolution: KEEP_BOTH,
+  onConflictResolutionChange: vi.fn(),
+} as Props;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -182,14 +183,14 @@ describe('ImportContextCard', () => {
       props: {
         ...defaultProps,
         hasConflict: true,
-        conflictResolution: 'replace',
+        conflictResolution: REPLACE,
       },
     });
 
     const keepBothRadio = screen.getByLabelText('keep-both-conflict-resolution-select');
     await userEvent.click(keepBothRadio);
 
-    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith('keep-both');
+    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith(KEEP_BOTH);
   });
 
   test('calls onConflictResolutionChange when replace is selected', async () => {
@@ -197,14 +198,14 @@ describe('ImportContextCard', () => {
       props: {
         ...defaultProps,
         hasConflict: true,
-        conflictResolution: 'keep-both',
+        conflictResolution: KEEP_BOTH,
       },
     });
 
     const replaceRadio = screen.getByLabelText('replace-conflict-resolution-select');
     await userEvent.click(replaceRadio);
 
-    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith('replace');
+    expect(vi.mocked(defaultProps.onConflictResolutionChange)).toHaveBeenCalledWith(REPLACE);
   });
 
   test('has correct aria-label on row', () => {
